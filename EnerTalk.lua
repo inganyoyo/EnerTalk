@@ -25,10 +25,12 @@ end
 _APP = {version = "v0.1", name = "EnerTalk", logLevel = "debug"}
 
 APP2DEV = {EnerTalkMultilevelSensor = {}, EnerTalkEnergyMeter = {}}
+
 APP2DEV = {
   EnerTalkMultilevelSensor = {yDay = {kNm = "전일사용요금"}, toDay = {kNm = "오늘사용요금"}, past = {kNm = "누적사용요금"}, future = {kNm = "예상사용요금"}},
   EnerTalkEnergyMeter = {real = {kNm = "실시간사용량"}, yDay = {kNm = "전일사용량"}, toDay = {kNm = "오늘사용량"}, past = {kNm = "누적사용량"}, future = {kNm = "예상사용량"}}
 }
+
 
 DEV2APP = {}
 unitMap = { EnerTalkMultilevelSensor = { real = "₩", yDay = "₩", toDay = "₩", past = "₩", future = "₩"},
@@ -54,7 +56,7 @@ local function newEnerTalk()
           method = requestType 
         },
         success = function(resp)
-          data = json.decode(resp.data)
+          local data = json.decode(resp.data)
           if resp.status == 200 then
             errs = 0
             quickSelf:updateProperty("log", os.date("%m-%d %X"))
@@ -73,8 +75,8 @@ local function newEnerTalk()
   function events(e)
     ({
         ["successFuture"] = function(e)
-          data = json.decode(e.value.data)
-          APP2DEV["EnerTalkMultilevelSensor"]["future"].device:setValue(data.bill.usage.charge)
+          local data = json.decode(e.value.data)
+          APP2DEV["EnerTalkMultilevelSensor"]["future"].device:setValue(data.bill.charge)
           APP2DEV["EnerTalkEnergyMeter"]["future"].device:setValue(data.usage)
           interval_key['interval_estimate'] = post({type = "callFuture"}, tonumber(interval_time['interval_estimate']) * 1000) 
         end,
@@ -84,9 +86,9 @@ local function newEnerTalk()
           httpCall(url, header, nil, "GET", "callFuture", "successFuture","error")
         end,
         ["successPast"] = function(e)
-          data = json.decode(e.value.data)
+          local data = json.decode(e.value.data) 
           APP2DEV["EnerTalkMultilevelSensor"]["past"].device:setValue(data.bill.charge)
-          APP2DEV["EnerTalkEnergyMeter"]["past"].device:setValue(data.usage)
+          APP2DEV["EnerTalkEnergyMeter"]["past"].device:setValue(data.usage) 
           interval_key['interval_accrue'] = post({type = "callPast"}, tonumber(interval_time['interval_accrue']) * 1000) 
         end,
         ["callPast"] = function(e)
@@ -99,7 +101,7 @@ local function newEnerTalk()
           local yTimestamp = dateTotimestamp(yDate[1],yDate[2],yDate[3]) * 1000
           local tDate = split(os.date("%Y-%m-%d",os.time()),"-")
           local tTimestamp = dateTotimestamp(tDate[1],tDate[2],tDate[3]) * 1000
-          data = json.decode(e.value.data)
+          local data = json.decode(e.value.data)
           for index,value in ipairs(data.items) do 
             if tonumber(value.timestamp) == tonumber(yTimestamp) then
               APP2DEV["EnerTalkMultilevelSensor"]["yDay"].device:setValue(value.bill.charge)
@@ -109,9 +111,7 @@ local function newEnerTalk()
               APP2DEV["EnerTalkEnergyMeter"]["toDay"].device:setValue(value.usage)
             end
           end
-          data = json.decode(e.value.data)
-          APP2DEV["EnerTalkMultilevelSensor"]["past"].device:setValue(data.bill.charge)
-          APP2DEV["EnerTalkEnergyMeter"]["past"].device:setValue(data.usage)
+          local data = json.decode(e.value.data)
           interval_key['interval_today'] = post({type = "callYestDayToDay"}, tonumber(interval_time['interval_today']) * 1000) 
         end,
         ["callYestDayToDay"] = function(e)
@@ -122,7 +122,7 @@ local function newEnerTalk()
           httpCall(url, header, nil, "GET", "callYestDayToDay", "successCallYestDayToDay","error")
         end,
         ["successReal"] = function(e)
-          data = json.decode(e.value.data)
+          local data = json.decode(e.value.data)
           APP2DEV["EnerTalkEnergyMeter"]["real"].device:setValue(data.billingActivePower)
           interval_key['interval_real'] = post({type = "callReal"}, tonumber(interval_time['interval_real']) * 1000) 
         end,
@@ -132,7 +132,7 @@ local function newEnerTalk()
           httpCall(url, header, nil, "GET", "callReal", "successReal","error")
         end,
         ["successCallRefreshToken"] = function(e)
-          data = json.decode(e.value.data)
+          local data = json.decode(e.value.data)
           enerTalkKey.accessToken = data.access_token
           enerTalkKey.refreshToken = data.refresh_token
           quickSelf:setVariable("accessToken", data.access_token)
@@ -148,8 +148,8 @@ local function newEnerTalk()
           local requestBody ={grant_type = "refresh_token", refresh_token = enerTalkKey.refreshToken}
           httpCall(url, header, requestBody, "POST", "callRefreshToken", "successCallRefreshToken", "error")
         end,
-        ["successCallAccessToken"] = function(e)
-          data = json.decode(e.value.data)
+        ["successCallAccessToken"] = function(e) 
+          local data = json.decode(e.value.data)
           enerTalkKey.accessToken = data.access_token
           enerTalkKey.refreshToken = data.refresh_token
           quickSelf:setVariable("accessToken", data.access_token)
@@ -205,7 +205,9 @@ local function newEnerTalk()
       Logger(LOG.error,"please check code, clientSecret, clientId ")
       return false
     else
-      post({type = "callAccessToken"})
+      if enerTalkKey.accessToken == "-" then
+        post({type = "callAccessToken"})
+      end
       return true
     end
   end
@@ -240,6 +242,9 @@ function QuickApp:installChildDevice()
   local isSaveLogs = self.properties.saveLogs
   self.childDevices = self.childDevices or {}
   --set APP2DEV, DEV2APP
+  for lclass, devices in pairs(APP2DEV) do
+    print(lclass) 
+  end
   Logger(LOG.sys, "---- set APP2DEV, DEV2APP ----")
   local cdevs = api.get("/devices?parentId=" .. plugin.mainDeviceId) or {}
   for _, cd in ipairs(cdevs) do
@@ -259,13 +264,13 @@ function QuickApp:installChildDevice()
         Logger(LOG.debug, "created device - %s", device.kNm)
         APP2DEV[lclass][name].device = createChild[lclass](lclass, name, device.kNm)
         APP2DEV[lclass][name].deviceId = APP2DEV[lclass][name].device.id
-        DEV2APP[APP2DEV[lclass][name].device.id] = {type = lClass, name = name}
-        APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs
+        print(lclass)
+        print(name)
       end
     end
   end
   Logger(LOG.sys, "-----------------------")
-
+  
   Logger(LOG.sys, "---- remove device ----")
   local cdevs = api.get("/devices?parentId=" .. plugin.mainDeviceId) or {}
   for _, cd in ipairs(cdevs) do
@@ -278,9 +283,11 @@ function QuickApp:installChildDevice()
   Logger(LOG.sys, "-----------------------")
 
   Logger(LOG.sys, "---- child device ----")
-  for lclass, devices in pairs(APP2DEV) do
-    for name, dev in pairs(devices) do
-      Logger(LOG.sys, "[%s] Class: %s, DeviceId: %s, Device Name: %s", name, lclass, dev.deviceId, APP2DEV[lclass][name].kNm)
+  for lClass, devices in pairs(APP2DEV) do
+    for name, dev in pairs(devices) do 
+      DEV2APP[APP2DEV[lClass][name].deviceId] = {type = lClass, name = name}
+      APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs
+      Logger(LOG.sys, "[%s] Class: %s, DeviceId: %s, Device Name: %s", name, lClass, dev.deviceId, APP2DEV[lClass][name].kNm)
     end
   end
   Logger(LOG.sys, "-----------------------")
@@ -336,23 +343,23 @@ end
 function EnerTalkEnergyMeter:__init(device)
   QuickAppChild.__init(self, device)
 end
-function EnerTalkEnergyMeter:setValue(value)
+function EnerTalkEnergyMeter:setValue(value) 
   if self.properties.unit == "mW" then
     value = round(tonumber(value) * 0.001,1)
   else 
     value = round(tonumber(value) * 0.000001,1)
   end
   self:updateProperty("log", tostring(value) .. self.properties.unit)
-  self:updateProperty("energy", value)
-  self:updateProperty("value", value)
+  self:updateProperty("energy", value) 
 end
 
 function QuickApp:onInit()
   Utilities(self)
   quickSelf = self
   Logger(LOG.sys,"---- version: %s name: %s ----", _APP.version, _APP.name)
-  oEnerTalk = newEnerTalk()
   self:installChildDevice()
+  oEnerTalk = newEnerTalk()
+  
   if oEnerTalk.init() then 
     self:turnOn() 
   end

@@ -258,15 +258,15 @@ function QuickApp:installChildDevice()
   Logger(LOG.sys, "-----------------------")
 
   Logger(LOG.sys, "---- create device ----")
-  for lclass, devices in pairs(APP2DEV) do
+  for lClass, devices in pairs(APP2DEV) do
     for name, device in pairs(devices) do
-      if APP2DEV[lclass][name].deviceId == nil then
+      if APP2DEV[lClass][name].deviceId == nil then
         Logger(LOG.debug, "created device - %s", device.kNm)
-        APP2DEV[lclass][name].device = createChild[lclass](lclass, name, device.kNm)
-        APP2DEV[lclass][name].deviceId = APP2DEV[lclass][name].device.id
-        print(lclass)
-        print(name)
+        APP2DEV[lClass][name].device = createChild[lClass](lClass, name, device.kNm)
+        APP2DEV[lClass][name].deviceId = APP2DEV[lClass][name].device.id
       end
+        DEV2APP[APP2DEV[lClass][name].deviceId] = {type = lClass, name = name}
+        APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs
     end
   end
   Logger(LOG.sys, "-----------------------")
@@ -285,8 +285,6 @@ function QuickApp:installChildDevice()
   Logger(LOG.sys, "---- child device ----")
   for lClass, devices in pairs(APP2DEV) do
     for name, dev in pairs(devices) do 
-      DEV2APP[APP2DEV[lClass][name].deviceId] = {type = lClass, name = name}
-      APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs
       Logger(LOG.sys, "[%s] Class: %s, DeviceId: %s, Device Name: %s", name, lClass, dev.deviceId, APP2DEV[lClass][name].kNm)
     end
   end

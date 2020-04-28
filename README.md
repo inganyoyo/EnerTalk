@@ -1,2 +1,2 @@
 # EnerTalk
- HC3 <-> EnerTalk
+ EnerTalk QuickApp for Fibaro HC3

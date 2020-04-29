@@ -9,7 +9,8 @@
        - Redirect URL: http://localhost
     3. code 발급
        - https://auth.enertalk.com/authorization?client_id={Client Id}&response_type=code&redirect_uri=http://localhost
-    - 주소창에 위의 주소입력 후 EnerTalk 개발센터 로그인 후 리다이렉트된 code값 복사    http://localhost?code=XXXX ( code값은 XXXX )
+       - 주소창에 위의 주소입력 후 EnerTalk 개발센터 로그인 후 리다이렉트된 code값 복사    
+       # http://localhost?code=XXXX ( code값은 XXXX )
   
 ## Installation
     0. 사전준비를 통해 Client Id, Client Secret, code 3개의 값을 준비하고 진행 

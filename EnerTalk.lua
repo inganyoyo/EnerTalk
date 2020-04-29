@@ -133,20 +133,21 @@ local function newEnerTalk()
         end,
         ["successCallRefreshToken"] = function(e)
           local data = json.decode(e.value.data)
+          Logger(LOG.debug,"new refresh token %s", data.refresh_token)
           enerTalkKey.accessToken = data.access_token
-          enerTalkKey.refreshToken = data.refresh_token
+          enerTalkKey.refreshToken = data.refresh_token 
           quickSelf:setVariable("accessToken", data.access_token)
           quickSelf:setVariable("refreshToken", data.refresh_token)
           post({type = e.referer})
         end,
         ["callRefreshToken"] = function(e)
           local url = enerTalkEndPoint.authorizeEndPoint
-          local header = { 
-            ["Authorization"] = string.format("Basic %s:%s", enerTalkKey.clientId, enerTalkKey.clientSecret),
+          local header = {   
+            ["Authorization"] = "Basic " .. b64enc(string.format("%s:%s", enerTalkKey.clientId, enerTalkKey.clientSecret)),
             ["Content-Type"] = "application/json" 
           }
           local requestBody ={grant_type = "refresh_token", refresh_token = enerTalkKey.refreshToken}
-          httpCall(url, header, requestBody, "POST", "callRefreshToken", "successCallRefreshToken", "error")
+          httpCall(url, header, requestBody, "POST", e.referer, "successCallRefreshToken", "error")
         end,
         ["successCallAccessToken"] = function(e) 
           local data = json.decode(e.value.data)
@@ -227,7 +228,6 @@ local function newEnerTalk()
       end
     end
   end
-
   return self
 end
 
@@ -242,9 +242,6 @@ function QuickApp:installChildDevice()
   local isSaveLogs = self.properties.saveLogs
   self.childDevices = self.childDevices or {}
   --set APP2DEV, DEV2APP
-  for lclass, devices in pairs(APP2DEV) do
-    print(lclass) 
-  end
   Logger(LOG.sys, "---- set APP2DEV, DEV2APP ----")
   local cdevs = api.get("/devices?parentId=" .. plugin.mainDeviceId) or {}
   for _, cd in ipairs(cdevs) do
@@ -285,10 +282,12 @@ function QuickApp:installChildDevice()
   Logger(LOG.sys, "---- child device ----")
   for lClass, devices in pairs(APP2DEV) do
     for name, dev in pairs(devices) do 
-      Logger(LOG.sys, "[%s] Class: %s, DeviceId: %s, Device Name: %s", name, lClass, dev.deviceId, APP2DEV[lClass][name].kNm)
+      Logger(LOG.sys, "[%s] Class: %s, DeviceId: %s, Device Name: %s, saveLogs: %s", name, lClass, dev.deviceId, APP2DEV[lClass][name].kNm, APP2DEV[lClass][name].device.properties.saveLogs)
     end
   end
-  Logger(LOG.sys, "-----------------------")
+  Logger(LOG.sys, "-----------------------") 
+  Logger(LOG.sys, "---- install completed ----")
+  return true
 end
 
 --[[ 
@@ -355,14 +354,14 @@ function QuickApp:onInit()
   Utilities(self)
   quickSelf = self
   Logger(LOG.sys,"---- version: %s name: %s ----", _APP.version, _APP.name)
-  self:installChildDevice()
+  --self:installChildDevice()
   oEnerTalk = newEnerTalk()
-  
-  if oEnerTalk.init() then 
-    self:turnOn() 
+  if self:installChildDevice() then
+    if oEnerTalk.init() then 
+        self:turnOn() 
+    end
   end
 end
-
 
 function QuickApp:turnOn()
   self:updateProperty("value", true)

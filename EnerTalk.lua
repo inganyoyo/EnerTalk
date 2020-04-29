@@ -73,7 +73,7 @@ local function newEnerTalk()
   end
 
   function events(e)
-    ({
+    ({ 
         ["successFuture"] = function(e)
           local data = json.decode(e.value.data)
           APP2DEV["EnerTalkMultilevelSensor"]["future"].device:setValue(data.bill.charge)
@@ -263,7 +263,7 @@ function QuickApp:installChildDevice()
         APP2DEV[lClass][name].deviceId = APP2DEV[lClass][name].device.id
       end
         DEV2APP[APP2DEV[lClass][name].deviceId] = {type = lClass, name = name}
-        APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs
+        APP2DEV[lClass][name].device.properties.saveLogs = isSaveLogs 
     end
   end
   Logger(LOG.sys, "-----------------------")
@@ -354,7 +354,6 @@ function QuickApp:onInit()
   Utilities(self)
   quickSelf = self
   Logger(LOG.sys,"---- version: %s name: %s ----", _APP.version, _APP.name)
-  --self:installChildDevice()
   oEnerTalk = newEnerTalk()
   if self:installChildDevice() then
     if oEnerTalk.init() then 

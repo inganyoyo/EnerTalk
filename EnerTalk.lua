@@ -2,17 +2,7 @@
     @file: EnerTalk.lua (EnerTalk.fqa)
     @author: SuSu Daddy (inganyoyo@me.com)
     @created date: 2020.04.20.
-    적용방법
-    1. EnerTalk 가입
-    - https://developer.enertalk.com/my-apps/
-    2. Client Id, Client Secret 발급 및 Redirect URL 설정
-    - Redirect URL: http://localhost
-    3. code 발급
-    - https://auth.enertalk.com/authorization?client_id={Client Id}&response_type=code&redirect_uri=http://localhost
-    - 주소창에 위의 주소입력 후 EnerTalk 개발센터 로그인 후 리다이렉트된 code값 복사 http://localhost?code=XXXX
-    - code값은 XXXX
-    4. QuickApp 생성 및 변수 저장
-    - QuickApp생성 후 등록된 변수 중 CLIENT_ID, CLIENT SECRET, CODE 값입력
+    @git: https://github.com/inganyoyo/EnerTalk
 ]]
 if dofile then
   dofile("fibaroapiHC3.lua")
@@ -25,26 +15,19 @@ end
 _APP = {version = "v0.1", name = "EnerTalk", logLevel = "debug"}
 
 APP2DEV = {EnerTalkMultilevelSensor = {}, EnerTalkEnergyMeter = {}}
-
 APP2DEV = {
   EnerTalkMultilevelSensor = {yDay = {kNm = "전일사용요금"}, toDay = {kNm = "오늘사용요금"}, past = {kNm = "누적사용요금"}, future = {kNm = "예상사용요금"}},
   EnerTalkEnergyMeter = {real = {kNm = "실시간사용량"}, yDay = {kNm = "전일사용량"}, toDay = {kNm = "오늘사용량"}, past = {kNm = "누적사용량"}, future = {kNm = "예상사용량"}}
 }
-
-
 DEV2APP = {}
-unitMap = { EnerTalkMultilevelSensor = { real = "₩", yDay = "₩", toDay = "₩", past = "₩", future = "₩"},
-  EnerTalkEnergyMeter = { real = "mW", yDay = "kWh", toDay = "kWh", past = "kWh", future = "kWh"}
-}
-enerTalkKey = {code = "", clientSecret = "", clientId = "", siteId = "", accessToken = "", refreshToken = ""}
-enerTalkEndPoint = {authorizeEndPoint = "https://auth.enertalk.com/token", apiEndPoint = "https://api2.enertalk.com/sites/"}
-
-interval_time = {["interval_today"] = "600", ["interval_real"] = "600", ["interval_accrue"] = "600", ["interval_estimate"] = "600" }
-interval_key = {["interval_today"] = {}, ["interval_real"] = {}, ["interval_accrue"] = {}, ["interval_estimate"] = {} }
-
-errs = 0
 
 local function newEnerTalk()
+  intervalTime = {["intervalToday"] = "600", ["intervalReal"] = "600", ["intervalAccrue"] = "600", ["intervalEstimate"] = "600" }
+  intervalKey = {["intervalToday"] = {}, ["intervalReal"] = {}, ["intervalAccrue"] = {}, ["intervalEstimate"] = {} }
+  enerTalkKey = {code = "", clientSecret = "", clientId = "", siteId = "", accessToken = "", refreshToken = ""}
+
+  errs = 0
+  enerTalkEndPoint = {authorizeEndPoint = "https://auth.enertalk.com/token", apiEndPoint = "https://api2.enertalk.com/sites/"}
   local self = {}
   function post(ev, t) return setTimeout(function() events(ev) end, t or 0) end
 
@@ -78,7 +61,7 @@ local function newEnerTalk()
           local data = json.decode(e.value.data)
           APP2DEV["EnerTalkMultilevelSensor"]["future"].device:setValue(data.bill.charge)
           APP2DEV["EnerTalkEnergyMeter"]["future"].device:setValue(data.usage)
-          interval_key['interval_estimate'] = post({type = "callFuture"}, tonumber(interval_time['interval_estimate']) * 1000) 
+          intervalKey['intervalEstimate'] = post({type = "callFuture"}, tonumber(intervalTime['intervalEstimate']) * 1000) 
         end,
         ["callFuture"] = function(e)
           local url = string.format("%s%s%s",enerTalkEndPoint.apiEndPoint, enerTalkKey.siteId, "/usages/billing?timeType=pastToFuture")
@@ -89,7 +72,7 @@ local function newEnerTalk()
           local data = json.decode(e.value.data) 
           APP2DEV["EnerTalkMultilevelSensor"]["past"].device:setValue(data.bill.charge)
           APP2DEV["EnerTalkEnergyMeter"]["past"].device:setValue(data.usage) 
-          interval_key['interval_accrue'] = post({type = "callPast"}, tonumber(interval_time['interval_accrue']) * 1000) 
+          intervalKey['intervalAccrue'] = post({type = "callPast"}, tonumber(intervalTime['intervalAccrue']) * 1000) 
         end,
         ["callPast"] = function(e)
           local url = string.format("%s%s%s",enerTalkEndPoint.apiEndPoint, enerTalkKey.siteId, "/usages/billing?period=day")
@@ -112,7 +95,7 @@ local function newEnerTalk()
             end
           end
           local data = json.decode(e.value.data)
-          interval_key['interval_today'] = post({type = "callYestDayToDay"}, tonumber(interval_time['interval_today']) * 1000) 
+          intervalKey['intervalToday'] = post({type = "callYestDayToDay"}, tonumber(intervalTime['intervalToday']) * 1000) 
         end,
         ["callYestDayToDay"] = function(e)
           local yDate = split(os.date("%Y-%m-%d",os.time()-24*60*60),"-")
@@ -124,7 +107,7 @@ local function newEnerTalk()
         ["successReal"] = function(e)
           local data = json.decode(e.value.data)
           APP2DEV["EnerTalkEnergyMeter"]["real"].device:setValue(data.billingActivePower)
-          interval_key['interval_real'] = post({type = "callReal"}, tonumber(interval_time['interval_real']) * 1000) 
+          intervalKey['intervalReal'] = post({type = "callReal"}, tonumber(intervalTime['intervalReal']) * 1000) 
         end,
         ["callReal"] = function(e)
           local url = string.format("%s%s%s",enerTalkEndPoint.apiEndPoint, enerTalkKey.siteId, "/usages/realtime")
@@ -188,11 +171,11 @@ local function newEnerTalk()
   end
 
   function self.init()
-    for key, value in pairs(interval_time) do
+    for key, value in pairs(intervalTime) do
       if quickSelf:getVariable(key) == "" or quickSelf:getVariable(key)  == nil then 
         quickSelf:setVariable(key, value) 
       end
-      interval_time[key] = quickSelf:getVariable(key)
+      intervalTime[key] = quickSelf:getVariable(key)
     end
 
     for key,value in pairs(enerTalkKey) do
@@ -222,9 +205,9 @@ local function newEnerTalk()
   end
   function self.stop()
     Logger(LOG.debug, "---- STOP EnerTalk ----")
-    for key, value in pairs(interval_key) do
-      if interval_key[key] then 
-        clearTimeout(interval_key[key])
+    for key, value in pairs(intervalKey) do
+      if intervalKey[key] then 
+        clearTimeout(intervalKey[key])
       end
     end
   end
@@ -233,6 +216,10 @@ end
 
 
 function QuickApp:installChildDevice()
+  unitMap = { 
+  EnerTalkMultilevelSensor = { real = "₩", yDay = "₩", toDay = "₩", past = "₩", future = "₩"},
+  EnerTalkEnergyMeter = { real = "mW", yDay = "kWh", toDay = "kWh", past = "kWh", future = "kWh"}
+  }
   self:initChildDevices(
     {
       ["com.fibaro.multilevelSensor"] = EnerTalkMultilevelSensor,

@@ -24,10 +24,10 @@
 clientId                  -- 사전준비에서 발급받은 client id 입력
 clientSecret              -- 사전준비에서 발급받은 Client Secret 입력
 code                      -- 사전준비에서 발급받은 code 입력
-interval_today            -- 어제, 오늘 요금 및 사용량 데이터를 조회하는 간격 (초)
-interval_real             -- 실시간 사용량 데이터를 조회하는 간격 (초)
-interval_accrue           -- 이번달 현재까지의 요금 및 사용량 데이터를 조회하는 간격 (초)
-interval_estimate         -- 이번달 예상 요금 및 사용량 데이터를 조회하는 간격 (초)
+intervalToday            -- 어제, 오늘 요금 및 사용량 데이터를 조회하는 간격 (초)
+intervalReal             -- 실시간 사용량 데이터를 조회하는 간격 (초)
+intervalAccrue           -- 이번달 현재까지의 요금 및 사용량 데이터를 조회하는 간격 (초)
+intervalEstimate         -- 이번달 예상 요금 및 사용량 데이터를 조회하는 간격 (초)
 siteId                    -- 자동생성 (수정 X)
 accessToken               -- 자동생성 (수정 X)
 refreshToken              -- 자동생성 (수정 X)

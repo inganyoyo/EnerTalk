@@ -12,7 +12,7 @@ if dofile then
   end
   require("mobdebug").coro()
 end 
-_APP = {version = "v0.1", name = "EnerTalk", logLevel = "debug"}
+_APP = {version = "v0.2", name = "EnerTalk", logLevel = "warning"}
 
 APP2DEV = {EnerTalkMultilevelSensor = {}, EnerTalkEnergyMeter = {}}
 APP2DEV = {
@@ -23,7 +23,7 @@ DEV2APP = {}
 
 local function newEnerTalk()
   intervalTime = {["intervalToday"] = "600", ["intervalReal"] = "600", ["intervalAccrue"] = "600", ["intervalEstimate"] = "600" }
-  intervalKey = {["intervalToday"] = {}, ["intervalReal"] = {}, ["intervalAccrue"] = {}, ["intervalEstimate"] = {} }
+  intervalKey = {["intervalToday"] = nil, ["intervalReal"] = nil, ["intervalAccrue"] = nil, ["intervalEstimate"] = nil }
   enerTalkKey = {code = "", clientSecret = "", clientId = "", siteId = "", accessToken = "", refreshToken = ""}
 
   errs = 0
@@ -43,14 +43,18 @@ local function newEnerTalk()
           if resp.status == 200 then
             errs = 0
             quickSelf:updateProperty("log", os.date("%m-%d %X"))
-            post({type = success, value = resp})
+            post({type = success, value = resp, referer = referer})
           elseif resp.status == 401 and data.type == "UnauthorizedError" then
             post({type = "callRefreshToken", value = resp, referer = referer})
+          else 
+            Logger(LOG.error,"%s:", json.encode(resp))
+            post({type = error, value = resp, referer = referer})  
           end
+          Logger(LOG.debug,"referer - %s, resp.status - %s",referer, resp.status)
         end,
         error = function(resp)
           Logger(LOG.error,"%s:", json.encode(resp))
-          post({type = error, value = resp})
+          post({type = error, value = resp, referer = referer})
         end
       })
   end
@@ -94,7 +98,6 @@ local function newEnerTalk()
               APP2DEV["EnerTalkEnergyMeter"]["toDay"].device:setValue(value.usage)
             end
           end
-          local data = json.decode(e.value.data)
           intervalKey['intervalToday'] = post({type = "callYestDayToDay"}, tonumber(intervalTime['intervalToday']) * 1000) 
         end,
         ["callYestDayToDay"] = function(e)
@@ -117,6 +120,7 @@ local function newEnerTalk()
         ["successCallRefreshToken"] = function(e)
           local data = json.decode(e.value.data)
           Logger(LOG.debug,"new refresh token %s", data.refresh_token)
+          Logger(LOG.debug,"refresh token referer - %s", e.referer)
           enerTalkKey.accessToken = data.access_token
           enerTalkKey.refreshToken = data.refresh_token 
           quickSelf:setVariable("accessToken", data.access_token)
@@ -161,11 +165,13 @@ local function newEnerTalk()
         end,
         ["error"] = function(e)
           Logger(LOG.error, "ERROR: %s", json.encode(e))
-          quickSelf:updateProperty("log", json.encode(e))
+          quickSelf:updateProperty("log", tostring(e.value.status))
           errs = errs + 1
           if errs > 3 then
-            self:turnOff()
-          end
+            quickSelf:turnOff()
+          else 
+            post({type = e.referer}, 60 * 1000)
+          end 
         end
         })[e.type](e)
   end
@@ -341,6 +347,7 @@ function QuickApp:onInit()
   Utilities(self)
   quickSelf = self
   Logger(LOG.sys,"---- version: %s name: %s ----", _APP.version, _APP.name)
+  self:updateView("btnLogLevel","text","log level = " .. _APP.logLevel)
   oEnerTalk = newEnerTalk()
   if self:installChildDevice() then
     if oEnerTalk.init() then 
@@ -350,14 +357,25 @@ function QuickApp:onInit()
 end
 
 function QuickApp:turnOn()
-  self:updateProperty("value", true)
   oEnerTalk.start()
+  quickSelf:updateProperty("value", true)
 end
 function QuickApp:turnOff()
   oEnerTalk.stop()
-  self:updateProperty("value", false)
+  quickSelf:updateProperty("value", false)
 end
-
+function QuickApp:btnLogLevelClicked()
+    if _APP.logLevel == "trace" then
+      _APP.logLevel = "debug"
+    elseif _APP.logLevel == "debug" then
+      _APP.logLevel = "warning"
+    elseif _APP.logLevel == "warning" then
+      _APP.logLevel = "error"
+    elseif _APP.logLevel == "error" then
+      _APP.logLevel = "trace"
+    end
+    self:updateView("btnLogLevel","text","log level = " .. _APP.logLevel)
+end
 --[[
   Utilities 
 ]]
